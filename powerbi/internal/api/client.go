@@ -3,12 +3,13 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/hashicorp/go-cleanhttp"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 // Client allows calling the Power BI service
@@ -17,7 +18,7 @@ type Client struct {
 }
 
 //NewClient creates a Power BI REST API client
-func NewClient(tenant string, clientID string, clientSecret string, username string, password string) (*Client, error) {
+func NewClient(tenant string, grantType string, clientID string, clientSecret string, username string, password string) (*Client, error) {
 
 	httpClient := cleanhttp.DefaultClient()
 
@@ -25,6 +26,7 @@ func NewClient(tenant string, clientID string, clientSecret string, username str
 	httpClient.Transport = roundTripperBearerToken{
 		innerRoundTripper: roundTripperErrorOnUnsuccessful{httpClient.Transport},
 		tenant:            tenant,
+		grantType:         grantType,
 		clientID:          clientID,
 		clientSecret:      clientSecret,
 		username:          username,

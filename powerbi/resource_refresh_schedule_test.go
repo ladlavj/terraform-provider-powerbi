@@ -2,12 +2,13 @@ package powerbi
 
 import (
 	"fmt"
-	"github.com/codecutout/terraform-provider-powerbi/powerbi/internal/api"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/codecutout/terraform-provider-powerbi/powerbi/internal/api"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
 
 func TestAccRefreshSchedule_basic(t *testing.T) {
@@ -49,7 +50,7 @@ func TestAccRefreshSchedule_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("powerbi_refresh_schedule.test", "times.1", "17:30"),
 					resource.TestCheckResourceAttr("powerbi_refresh_schedule.test", "local_time_zone_id", "Pacific Standard Time"),
 					resource.TestCheckResourceAttr("powerbi_refresh_schedule.test", "notify_option", "MailOnFailure"),
-					testCheckRefreshSchedule("powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
+					testCheckRefreshSchedule("powerbi_workspace.test", "powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
 						Enabled:         true,
 						Days:            []string{"Monday", "Wednesday", "Friday"},
 						Times:           []string{"09:00", "17:30"},
@@ -82,7 +83,7 @@ func TestAccRefreshSchedule_basic(t *testing.T) {
 				}
 				`,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckRefreshSchedule("powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
+					testCheckRefreshSchedule("powerbi_workspace.test", "powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
 						Enabled:         true,
 						Days:            []string{"Tuesday", "Thursday"},
 						Times:           []string{"09:00", "17:30"},
@@ -115,7 +116,7 @@ func TestAccRefreshSchedule_basic(t *testing.T) {
 				}
 				`,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckRefreshSchedule("powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
+					testCheckRefreshSchedule("powerbi_workspace.test", "powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
 						Enabled:         false,
 						Days:            []string{"Tuesday", "Thursday"},
 						Times:           []string{"09:00"},
@@ -191,6 +192,7 @@ func TestAccRefreshSchedule_validation(t *testing.T) {
 
 func TestAccRefreshSchedule_skew(t *testing.T) {
 	var datasetID string
+	var groupID string
 
 	config := `
 	resource "powerbi_workspace" "test" {
@@ -239,7 +241,7 @@ func TestAccRefreshSchedule_skew(t *testing.T) {
 				},
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckRefreshSchedule("powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
+					testCheckRefreshSchedule("powerbi_workspace.test", "powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
 						Enabled:         false,
 						Days:            []string{"Monday", "Wednesday", "Friday"},
 						Times:           []string{"09:00", "17:30"},
@@ -252,11 +254,11 @@ func TestAccRefreshSchedule_skew(t *testing.T) {
 			{
 				PreConfig: func() {
 					client := testAccProvider.Meta().(*api.Client)
-					client.DeleteDataset(datasetID)
+					client.DeleteDatasetInGroup(groupID, datasetID)
 				},
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testCheckRefreshSchedule("powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
+					testCheckRefreshSchedule("powerbi_workspace.test", "powerbi_refresh_schedule.test", api.GetRefreshScheduleResponse{
 						Enabled:         false,
 						Days:            []string{"Monday", "Wednesday", "Friday"},
 						Times:           []string{"09:00", "17:30"},
@@ -269,15 +271,20 @@ func TestAccRefreshSchedule_skew(t *testing.T) {
 	})
 }
 
-func testCheckRefreshSchedule(scheduleRefreshResourceName string, expectedRefreshSchedule api.GetRefreshScheduleResponse) resource.TestCheckFunc {
+func testCheckRefreshSchedule(workspaceResourceName string, scheduleRefreshResourceName string, expectedRefreshSchedule api.GetRefreshScheduleResponse) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		refreshScheduleID, err := getID(s, scheduleRefreshResourceName)
 		if err != nil {
 			return err
 		}
 
+		groupID, err := getID(s, workspaceResourceName)
+		if err != nil {
+			return err
+		}
+
 		client := testAccProvider.Meta().(*api.Client)
-		actualRefreshSchedule, err := client.GetRefreshSchedule(refreshScheduleID)
+		actualRefreshSchedule, err := client.GetRefreshScheduleInGroup(groupID, refreshScheduleID)
 
 		if err != nil {
 			return err

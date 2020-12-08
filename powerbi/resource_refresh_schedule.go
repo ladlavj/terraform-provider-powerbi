@@ -2,9 +2,10 @@ package powerbi
 
 import (
 	"fmt"
+	"regexp"
+
 	"github.com/codecutout/terraform-provider-powerbi/powerbi/internal/api"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"regexp"
 )
 
 // ResourceRefreshSchedule represents a Power BI refresh schedule
@@ -80,6 +81,17 @@ func getDatasetID(d *schema.ResourceData, meta interface{}) (string, error) {
 		return "", fmt.Errorf("Unable to determine dataset ID. Ensure dataset_id is set")
 	}
 	return datasetID, nil
+}
+
+func getGroupID(d *schema.ResourceData, meta interface{}) (string, error) {
+	groupID := d.Get("workspace_id").(string)
+	if groupID == "" {
+		groupID = d.Id()
+	}
+	if groupID == "" {
+		return "", fmt.Errorf("Unable to determine dataset ID. Ensure dataset_id is set")
+	}
+	return groupID, nil
 }
 
 func validateConfig(d *schema.ResourceData, meta interface{}) error {
@@ -168,7 +180,11 @@ func readRefreshSchedule(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	refreshSchedule, err := client.GetRefreshSchedule(datasetID)
+	groupID, err := getGroupID(d, meta)
+	if err != nil {
+		return err
+	}
+	refreshSchedule, err := client.GetRefreshScheduleInGroup(groupID, datasetID)
 	if isHTTP404Error(err) {
 		d.SetId("")
 		return nil
