@@ -5,7 +5,11 @@ import (
 	"os"
 	"time"
 
+<<<<<<< HEAD:internal/powerbi/resource_pbix.go
 	"github.com/codecutout/terraform-provider-powerbi/internal/powerbiapi"
+=======
+	"github.com/codecutout/terraform-provider-powerbi/powerbi/internal/api"
+>>>>>>> 949d730ac895914eeea33e36a62c1becbe903c88:powerbi/resource_pbix.go
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
